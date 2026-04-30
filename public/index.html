@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Eco — Asistente de los Ecorastreadores</title>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',sans-serif;background:#f7f5ef;margin:0}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:rgba(20,94,110,.15);border-radius:3px}
+input::placeholder{color:#6b8a92}
+button:focus-visible,input:focus-visible{outline:3px solid #1a7a8c;outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const{useState,useRef,useEffect,useCallback}=React;
+const SYS=`Eres Eco, chica, asistente educativa en Alicante para 6º Primaria (11-12 años). Ecorastreadores, 6ºA.
+REGLAS: 1) NUNCA des la respuesta (nombres, fechas, conceptos, datos). Test: si leyendo tu respuesta ya saben la respuesta, reescribe. 2) NUNCA valides info falsa. Di "no es exactamente así". 3) NUNCA inventes info. 4) Si quieren que hagas la tarea: "No te la hago entera, pero te ayudo." 5) Termina con acción concreta. 6) Si fechas/números: operación matemática cuyo resultado sea la cifra. Adapta dificultad invisible.
+ORTOGRAFÍA: Solo corrige faltas REALES (1-2 al final). Si bien escrito, CALLA. No inventes correcciones.
+TONO: Cercana, frases cortas. Puede: "mola","venga va". NUNCA: palabrotas. Elogio real. Inclusiva: nunca etiqueta. Adapta complejidad invisible. Máx 4 líneas. EN ESPAÑOL.`;
+const MS={pista:"\\nMODO PISTA: UNA ayuda breve para desbloquear. NUNCA des la respuesta.",pregunta:"\\nMODO PREGUNTAS: 1-2 preguntas para razonar. NUNCA des la respuesta dentro de la pregunta.",revisa:"\\nMODO REVISIÓN: Mejorar texto SIN reescribir. Formato: algo bueno+mejora+pregunta."};
+const MODES={pista:{id:"pista",emoji:"🔍",label:"Dame una pista",desc:"Te doy una pista para que sigas pensando tú",color:"#d4724a"},pregunta:{id:"pregunta",emoji:"❓",label:"Hazme pensar",desc:"Te devuelvo preguntas para que profundices",color:"#1a7a8c"},revisa:{id:"revisa",emoji:"✏️",label:"Revisa mi texto",desc:"Te señalo qué mejorar, sin corregirlo yo",color:"#5a9a4a"}};
+const Avi=({who,sz=30})=>React.createElement("div",{style:{width:sz,height:sz,minWidth:sz,borderRadius:"50%",background:who==="eco"?"linear-gradient(145deg,#2196a8,#145e6e)":"linear-gradient(145deg,#e8885a,#d4a456)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:sz*.45,boxShadow:who==="eco"?"0 2px 10px rgba(20,94,110,.3)":"0 2px 10px rgba(232,136,90,.3)"}},who==="eco"?"🌊":"✏️");
+const Msg=({m})=>{const u=m.role==="user";return React.createElement("div",{style:{display:"flex",gap:8,flexDirection:u?"row-reverse":"row",alignItems:"flex-start",animation:"fadeIn .3s"}},React.createElement(Avi,{who:u?"stu":"eco"}),React.createElement("div",{style:{maxWidth:"82%",background:u?"linear-gradient(145deg,#145e6e,#1a7a8c)":"#edf5f7",color:u?"#fff":"#1a2a2e",borderRadius:u?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"10px 14px",fontFamily:"'Nunito',sans-serif",fontSize:13.5,lineHeight:1.6,whiteSpace:"pre-wrap",boxShadow:u?"0 2px 8px rgba(20,94,110,.2)":"0 1px 3px rgba(0,0,0,.04)"}},m.ml&&!u&&React.createElement("div",{style:{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:1.2,color:m.mc,marginBottom:3,opacity:.85}},m.me," ",m.ml),m.content))};
+function EcoApp(){
+const[msgs,setMsgs]=useState([]);const[inp,setInp]=useState("");const[mode,setMode]=useState("pista");const[busy,setBusy]=useState(false);const[on,setOn]=useState(false);const ref=useRef(null);
+useEffect(()=>{ref.current&&(ref.current.scrollTop=ref.current.scrollHeight)},[msgs,busy]);
+const send=useCallback(async()=>{if(!inp.trim()||busy)return;const txt=inp.trim();setInp("");setOn(true);setBusy(true);const mo=MODES[mode];const um={role:"user",content:txt};setMsgs(p=>[...p,um]);
+try{const hist=[...msgs,um].slice(-6).map(x=>({role:x.role==="user"?"user":"assistant",content:x.content}));
+const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:hist,system:SYS+MS[mode]})});
+const data=await r.json();if(!r.ok)throw new Error(data.error||"Error");
+setMsgs(p=>[...p,{role:"assistant",content:data.text,ml:mo.label,mc:mo.color,me:mo.emoji}])}catch(e){setMsgs(p=>[...p,{role:"assistant",content:"No he podido conectar: "+e.message,ml:mo.label,mc:mo.color,me:mo.emoji}])}setBusy(false)},[inp,busy,msgs,mode]);
+return React.createElement("div",{style:{width:"100%",maxWidth:420,height:"100dvh",margin:"0 auto",display:"flex",flexDirection:"column",background:"#f7f5ef",fontFamily:"'Nunito',sans-serif",overflow:"hidden"}},
+React.createElement("header",{style:{background:"linear-gradient(145deg,#0f4f5f,#1a7a8c)",padding:"14px 18px 10px",color:"#fff"}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},React.createElement("span",{style:{fontSize:24}},"🌊"),React.createElement("div",null,React.createElement("h1",{style:{fontFamily:"'Lilita One',sans-serif",fontSize:19,margin:0,fontWeight:"normal"}},"Eco"),React.createElement("p",{style:{fontSize:10.5,opacity:.75,fontWeight:600,margin:0}},"Asistente de los Ecorastreadores")))),
+React.createElement("main",{ref,style:{flex:1,overflowY:"auto",padding:"6px 14px",display:"flex",flexDirection:"column",gap:10}},
+!on&&React.createElement("div",{style:{padding:"20px 4px 8px"}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12,marginBottom:14}},React.createElement(Avi,{who:"eco",sz:46}),React.createElement("div",null,React.createElement("div",{style:{fontFamily:"'Lilita One',sans-serif",fontSize:21,color:"#145e6e"}},"Soy Eco"),React.createElement("div",{style:{fontSize:12.5,color:"#6b8a92",marginTop:2,fontWeight:600}},"Tu asistente para pensar, no para copiar"))),React.createElement("div",{style:{fontSize:13.5,color:"#2a3a3e",lineHeight:1.65,maxWidth:340,marginBottom:16}},"Te ayudo a desbloquear tareas, pensar mejor y mejorar tus textos. Pero la respuesta la construyes tú."),React.createElement("div",{style:{padding:"10px 14px",borderRadius:10,background:"linear-gradient(135deg,#faf3e0,#f5ead0)",fontSize:12,color:"#5a4a2a",fontWeight:600,textAlign:"center"}},"Ejemplo: ",React.createElement("span",{style:{fontStyle:"italic",color:"#7a6a4a"}},'"No entiendo la pregunta 3"'))),
+msgs.map((m,i)=>React.createElement(Msg,{key:i,m})),
+busy&&React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center",padding:"10px 0"}},React.createElement(Avi,{who:"eco",sz:30}),React.createElement("div",{style:{background:"#edf5f7",borderRadius:"14px 14px 14px 4px",padding:"9px 14px",color:"#6b8a92",fontSize:13.5}},"Eco está pensando..."))),
+React.createElement("nav",{style:{background:"#fff",borderTop:"1px solid rgba(20,94,110,.08)",padding:"10px 14px 14px"}},
+React.createElement("div",{style:{display:"flex",gap:8,marginBottom:8}},Object.values(MODES).map(mo=>React.createElement("button",{key:mo.id,onClick:()=>setMode(mo.id),style:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"12px 10px",minHeight:48,border:"none",borderRadius:24,background:mode===mo.id?(mo.id==="pista"?"#fdf0eb":mo.id==="revisa"?"#edf7ed":"#edf5f7"):"#f7f5ef",cursor:"pointer",flex:1,minWidth:0}},React.createElement("span",{style:{fontSize:16}},mo.emoji),React.createElement("span",{style:{fontSize:12,fontWeight:700,color:mode===mo.id?mo.color:"#5a6a6e",fontFamily:"'Nunito',sans-serif"}},mo.label)))),
+React.createElement("p",{style:{fontSize:11,color:MODES[mode].color,fontWeight:600,textAlign:"center",marginBottom:8}},MODES[mode].desc),
+React.createElement("div",{style:{display:"flex",gap:8,alignItems:"center"}},
+React.createElement("input",{value:inp,onChange:e=>setInp(e.target.value),onKeyDown:e=>{if(e.key==="Enter"){e.preventDefault();send()}},placeholder:"Escribe aquí...",disabled:busy,style:{flex:1,border:"1.5px solid rgba(20,94,110,.2)",borderRadius:22,padding:"12px 16px",fontSize:14,fontFamily:"'Nunito',sans-serif",outline:"none",background:"#f7f5ef",color:"#1a2a2e"}}),
+React.createElement("button",{onClick:send,disabled:busy||!inp.trim(),style:{width:46,height:46,borderRadius:23,border:"none",background:busy||!inp.trim()?"rgba(20,94,110,.12)":"linear-gradient(145deg,#145e6e,#1a7a8c)",color:"#fff",fontSize:17,cursor:busy||!inp.trim()?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:busy||!inp.trim()?"none":"0 3px 12px rgba(20,94,110,.25)"}},"➤"))))}
+ReactDOM.render(React.createElement(EcoApp),document.getElementById("app"));
+</script>
+</body>
+</html>
